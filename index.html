@@ -447,7 +447,11 @@ function showEdit(mode,id=null) {
   document.getElementById("volumeInput").disabled = readOnly;
   document.getElementById("structureInput").disabled = readOnly;
   document.getElementById("ballsInput").disabled = readOnly;
-  document.getElementById("sizeInput").disabled = readOnly;
+  // Size is available only when Balls has a non-zero value.
+  const ballsValue = Number(document.getElementById("ballsInput").value);
+  const sizeInput = document.getElementById("sizeInput");
+  if (ballsValue === 0) sizeInput.value = "0";
+  sizeInput.disabled = readOnly || ballsValue === 0;
   document.getElementById("saveBtn").hidden = readOnly;
   document.getElementById("dateInput").focus();
 }
@@ -628,6 +632,17 @@ function closeFileMenu(){ const d=document.querySelector("details"); if(d) d.rem
 document.getElementById("listBtn").onclick=showList;
 document.getElementById("statsBtn").onclick=showStats;
 document.getElementById("addBtn").onclick=()=>{closeFileMenu();showEdit("Add");};
+document.getElementById("ballsInput").addEventListener("change", ()=>{
+  const ballsValue = Number(document.getElementById("ballsInput").value);
+  const sizeInput = document.getElementById("sizeInput");
+  if (ballsValue === 0) {
+    sizeInput.value = "0";
+    sizeInput.disabled = true;
+  } else {
+    sizeInput.disabled = false;
+  }
+});
+
 document.getElementById("changeBtn").onclick=()=>{
   closeFileMenu();
   if (!selectedRecord()) return alert("Please select a record.");
