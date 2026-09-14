@@ -99,7 +99,7 @@
 <body>
 <header>
   <h1>Dump</h1>
-  <div class="version">v10</div>
+  <div class="version">v11</div>
 </header>
 
 <nav>
@@ -207,7 +207,7 @@
   <div class="modal">
     <h3>Import CSV</h3>
     <input id="fileInput" type="file" accept=".csv,text/csv">
-    <div class="hint">Choose a CSV file containing Date,Time,Volume,Structure,Balls,Size values.</div>
+    <div class="hint">Choose a CSV file containing Date,Time,Volume,Structure,Balls,Size,Blood values, or Date,Time,Structure,Ball,Volume,Blood values.</div>
     <div id="importError" class="error"></div>
     <div class="actions">
       <button id="confirmImport">Import</button>
@@ -641,7 +641,7 @@ dateEl.addEventListener("blur", ()=>maskedBlur(dateEl,"date"));
 timeEl.addEventListener("blur", ()=>maskedBlur(timeEl,"time"));
 
 function closeFileMenu(){ const d=document.querySelector("details"); if(d) d.removeAttribute("open"); }
-document.getElementById("listBtn").onclick=showList;
+document.getElementById("listBtn").onclick=()=>{closeFileMenu();showList();};
 document.getElementById("statsBtn").onclick=showStats;
 document.getElementById("addBtn").onclick=()=>{closeFileMenu();showEdit("Add");};
 document.getElementById("ballsInput").addEventListener("change", ()=>{
@@ -724,23 +724,63 @@ document.getElementById("confirmImport").onclick=()=>{
   reader.onload=()=>{
     try {
       const text = reader.result.replace(/^\uFEFF/, "");
-    const lines=text.replace(/\r/g,"").split("\n").filter(x=>x.trim()!=="");
-      const start=/^\s*date\s*,\s*time(?:\s*,\s*volume)?(?:\s*,\s*structure)?(?:\s*,\s*balls)?(?:\s*,\s*size)?(?:\s*,\s*blood)?\s*$/i.test(lines[0]) ? 1 : 0;
+      const lines=text.replace(/\r/g,"").split("\n").filter(x=>x.trim()!=="");
+      if(!lines.length) throw new Error("CSV file is empty.");
+
+      // Accept either the Dump export layout or the Zoo_v8 layout.
+      // Header names are used so column order does not matter.
+      const first=lines[0].split(",").map(x=>x.trim().toLowerCase());
+      const hasHeader=first.includes("date") && first.includes("time");
+      let start=0, idx=null;
+      if(hasHeader){
+        start=1;
+        idx={
+          date:first.indexOf("date"),
+          time:first.indexOf("time"),
+          volume:first.indexOf("volume"),
+          structure:first.indexOf("structure"),
+          balls:first.indexOf("balls") >= 0 ? first.indexOf("balls") : first.indexOf("ball"),
+          size:first.indexOf("size"),
+          blood:first.indexOf("blood")
+        };
+        if(idx.date<0 || idx.time<0 || idx.volume<0 || idx.structure<0 || idx.balls<0)
+          throw new Error("CSV must contain Date, Time, Volume, Structure, and Balls (or Ball) columns.");
+      }
+
       const imported=[];
       for(let i=start;i<lines.length;i++){
         const parts=lines[i].split(",");
-        if(parts.length<2 || !validDate(parts[0].trim()) || !validTime(parts[1].trim()))
+        const get=(name,pos)=>{
+          const n=hasHeader ? idx[name] : pos;
+          return n>=0 && n<parts.length ? parts[n].trim() : "";
+        };
+        const date=get("date",0);
+        let time=get("time",1);
+        // Accept both H:MM and HH:MM on import, storing HH:MM.
+        const tm=time.match(/^(\d{1,2}):(\d{2})$/);
+        if(tm) time=tm[1].padStart(2,"0")+":"+tm[2];
+        if(!validDate(date) || !validTime(time))
           throw new Error("Invalid Date or Time on CSV line "+(i+1)+".");
-        const volume=parts.length>=3 && parts[2].trim()!=="" ? Number(parts[2].trim()) : 3;
+
+        const volumeText=get("volume",2);
+        const volume=volumeText!=="" ? Number(volumeText) : 3;
         if(![1,2,3,4].includes(volume)) throw new Error("Invalid Volume on CSV line "+(i+1)+".");
-        const structure=parts.length>=4 && parts[3].trim()!=="" ? Number(parts[3].trim()) : 1;
+
+        const structureText=get("structure",3);
+        const structure=structureText!=="" ? Number(structureText) : 1;
         if(![1,2,3].includes(structure)) throw new Error("Invalid Structure on CSV line "+(i+1)+".");
-        const balls=parts.length>=5 && parts[4].trim()!=="" ? Number(parts[4].trim()) : 0;
+
+        const ballsText=get("balls",4);
+        const balls=ballsText!=="" ? Number(ballsText) : 0;
         if(![0,1,2,3].includes(balls)) throw new Error("Invalid Balls on CSV line "+(i+1)+".");
-        const size=parts.length>=6 && parts[5].trim()!=="" ? Number(parts[5].trim()) : 0;
+
+        const sizeText=get("size",5);
+        const size=sizeText!=="" ? Number(sizeText) : 0;
         if(![0,1,2,3].includes(size)) throw new Error("Invalid Size on CSV line "+(i+1)+".");
-        const blood=parts.length>=7 && parts[6].trim().toUpperCase()==="B" ? "B" : "";
-        imported.push({id:crypto.randomUUID(),date:parts[0].trim(),time:parts[1].trim(),volume,structure,balls,size,blood});
+
+        const bloodText=get("blood",6).toUpperCase();
+        const blood=bloodText==="B" ? "B" : "";
+        imported.push({id:crypto.randomUUID(),date,time,volume,structure,balls,size,blood});
       }
       records=imported; selectedId=records[0]?.id || null; saveRecords();
       document.getElementById("importModal").style.display="none"; showList();
