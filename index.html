@@ -58,13 +58,17 @@
   .list .timeCol { width:70px; }
   .list .volumeCol { width:90px; }
   .list .structureCol { width:80px; }
+  .list .showCol { width:55px; }
   .list td { border-left:1px solid #ccc; border-right:1px solid #ccc; border-bottom:1px solid #ccc; height:27px; line-height:27px; font-size:14px; }
   .list td:first-child { text-align:center; }
+  .list td:last-child { text-align:center; }
+  .list .showButton { font-size:12px; line-height:18px; padding:2px 5px; margin:0; white-space:nowrap; }
   .list input[type="radio"] { width:18px; height:18px; accent-color:#777; margin:0; vertical-align:middle; }
   .empty { color:#555; padding:18px 4px; font-size:16px; }
   .screen { max-width:500px; margin:10px auto; }
   .screen h2 { margin:0 0 20px; font-size:24px; }
   label { display:block; margin:18px 0 6px; font-weight:700; font-size:16px; }
+  .section-label { margin-top:24px; font-size:20px; font-weight:700; border-bottom:1px solid #ccc; padding-bottom:6px; }
   .masked { width:100%; font-size:20px; padding:10px; letter-spacing:1px; }
   .actions { display:flex; gap:10px; margin-top:24px; }
   button { font-size:16px; padding:8px 14px; border:1px solid #777; border-radius:5px; background:#f5f5f5; color:#111; }
@@ -84,13 +88,14 @@
     .list .timeCol { width:70px; }
     .list .volumeCol { width:90px; }
     .list .structureCol { width:80px; }
+    .list .showCol { width:55px; }
   }
 </style>
 </head>
 <body>
 <header>
   <h1>Dump</h1>
-  <div class="version">v4</div>
+  <div class="version">v5</div>
 </header>
 
 <nav>
@@ -113,8 +118,8 @@
 
 <main id="listScreen">
   <table class="list">
-    <colgroup><col class="radioCol"><col class="dayCol"><col class="dateCol"><col class="timeCol"><col class="volumeCol"><col class="structureCol"></colgroup>
-    <thead><tr><th></th><th>Day</th><th>Date</th><th>Time</th><th>Volume</th><th>Structure</th></tr></thead>
+    <colgroup><col class="radioCol"><col class="dayCol"><col class="dateCol"><col class="timeCol"><col class="volumeCol"><col class="structureCol"><col class="showCol"></colgroup>
+    <thead><tr><th></th><th>Day</th><th>Date</th><th>Time</th><th>Volume</th><th>Structure</th><th>Show</th></tr></thead>
     <tbody id="rows"></tbody>
   </table>
   <div id="empty" class="empty">No records stored.</div>
@@ -148,6 +153,15 @@
     <option value="4">Small</option>
   </select>
 
+  <div class="section-label">Attributes</div>
+  <label for="ballsInput">Balls</label>
+  <select id="ballsInput" class="masked" aria-label="Balls">
+    <option value="0" selected></option>
+    <option value="1">Pellet</option>
+    <option value="2">Marble</option>
+    <option value="3">Stone</option>
+  </select>
+
   <label for="structureInput">Structure</label>
   <select id="structureInput" class="masked" aria-label="Structure">
     <option value="1" selected>Firm</option>
@@ -176,7 +190,7 @@
   <div class="modal">
     <h3>Import CSV</h3>
     <input id="fileInput" type="file" accept=".csv,text/csv">
-    <div class="hint">Choose a CSV file containing Date,Time,Volume,Structure values.</div>
+    <div class="hint">Choose a CSV file containing Date,Time,Volume,Structure,Balls values.</div>
     <div id="importError" class="error"></div>
     <div class="actions">
       <button id="confirmImport">Import</button>
@@ -299,7 +313,20 @@ function renderList() {
     const td5=document.createElement("td");
     const structureDisplay={1:"Firm",2:"Loose",3:"Liquid"};
     td5.textContent=structureDisplay[r.structure] || structureDisplay[1];
-    tr.append(td0,td1,td2,td3,td4,td5); tbody.appendChild(tr);
+
+    const td6=document.createElement("td");
+    if (Number(r.balls ?? 0) !== 0) {
+      const showBtn=document.createElement("button");
+      showBtn.type="button";
+      showBtn.textContent="Show";
+      showBtn.className="showButton";
+      showBtn.addEventListener("click", (e)=>{
+        e.stopPropagation();
+        showEdit("Show", r.id);
+      });
+      td6.appendChild(showBtn);
+    }
+    tr.append(td0,td1,td2,td3,td4,td5,td6); tbody.appendChild(tr);
   }
 }
 function showList() {
@@ -385,22 +412,32 @@ function showStats() {
 }
 function showEdit(mode,id=null) {
   document.getElementById("listScreen").hidden=true;
+  document.getElementById("statsScreen").hidden=true;
   document.getElementById("editScreen").hidden=false;
   document.getElementById("editTitle").textContent=mode;
   editingId=id;
   document.getElementById("editError").textContent="";
+  const readOnly = mode === "Show";
   if (mode==="Add") {
     initializeMask(dateEl,"date",todayDate());
     initializeMask(timeEl,"time",nowTime());
     document.getElementById("volumeInput").value="3";
     document.getElementById("structureInput").value="1";
+    document.getElementById("ballsInput").value="0";
   } else {
     const r=records.find(x=>x.id===id);
     initializeMask(dateEl,"date",r?.date || "");
     initializeMask(timeEl,"time",r?.time || "");
     document.getElementById("volumeInput").value=String(r?.volume ?? 3);
     document.getElementById("structureInput").value=String(r?.structure ?? 1);
+    document.getElementById("ballsInput").value=String(r?.balls ?? 0);
   }
+  dateEl.readOnly = readOnly;
+  timeEl.readOnly = readOnly;
+  document.getElementById("volumeInput").disabled = readOnly;
+  document.getElementById("structureInput").disabled = readOnly;
+  document.getElementById("ballsInput").disabled = readOnly;
+  document.getElementById("saveBtn").hidden = readOnly;
   document.getElementById("dateInput").focus();
 }
 function selectedRecord() { return records.find(r=>r.id===selectedId); }
@@ -602,17 +639,19 @@ document.getElementById("saveBtn").onclick=()=>{
   const time=document.getElementById("timeInput").value.replace(/_/g,"");
   const volume=Number(document.getElementById("volumeInput").value);
   const structure=Number(document.getElementById("structureInput").value);
+  const balls=Number(document.getElementById("ballsInput").value);
   const err=document.getElementById("editError");
   if (!validDate(date)) { err.textContent="Enter a valid date as MM/DD/YYYY."; return; }
   if (!validTime(time)) { err.textContent="Enter a valid 24-hour time as HH:MM."; return; }
   if (![1,2,3,4].includes(volume)) { err.textContent="Select a valid Volume."; return; }
   if (![1,2,3].includes(structure)) { err.textContent="Select a valid Structure."; return; }
+  if (![0,1,2,3].includes(balls)) { err.textContent="Select a valid Balls value."; return; }
   if (editingId===null) {
-    const r={id:crypto.randomUUID(),date,time,volume,structure};
+    const r={id:crypto.randomUUID(),date,time,volume,structure,balls};
     records.push(r); selectedId=r.id;
   } else {
     const r=records.find(x=>x.id===editingId);
-    if(r){r.date=date;r.time=time;r.volume=volume;r.structure=structure;} selectedId=editingId;
+    if(r){r.date=date;r.time=time;r.volume=volume;r.structure=structure;r.balls=balls;} selectedId=editingId;
   }
   saveRecords(); showList();
 };
@@ -622,7 +661,7 @@ document.getElementById("cancelBtn").onclick=()=>{ editingId=null; showList(); }
 document.getElementById("exportBtn").onclick=()=>{
   closeFileMenu();
   sortRecords();
-  const csv="Date,Time,Volume,Structure\n"+records.map(r=>`${r.date},${r.time},${r.volume ?? 3},${r.structure ?? 1}`).join("\n");
+  const csv="Date,Time,Volume,Structure,Balls\n"+records.map(r=>`${r.date},${r.time},${r.volume ?? 3},${r.structure ?? 1},${r.balls ?? 0}`).join("\n");
   const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
   const a=document.createElement("a");
   a.href=URL.createObjectURL(blob); a.download="Dump.csv"; a.click();
@@ -645,7 +684,7 @@ document.getElementById("confirmImport").onclick=()=>{
     try {
       const text = reader.result.replace(/^\uFEFF/, "");
     const lines=text.replace(/\r/g,"").split("\n").filter(x=>x.trim()!=="");
-      const start=/^\s*date\s*,\s*time(?:\s*,\s*volume)?(?:\s*,\s*structure)?\s*$/i.test(lines[0]) ? 1 : 0;
+      const start=/^\s*date\s*,\s*time(?:\s*,\s*volume)?(?:\s*,\s*structure)?(?:\s*,\s*balls)?\s*$/i.test(lines[0]) ? 1 : 0;
       const imported=[];
       for(let i=start;i<lines.length;i++){
         const parts=lines[i].split(",");
@@ -655,7 +694,9 @@ document.getElementById("confirmImport").onclick=()=>{
         if(![1,2,3,4].includes(volume)) throw new Error("Invalid Volume on CSV line "+(i+1)+".");
         const structure=parts.length>=4 && parts[3].trim()!=="" ? Number(parts[3].trim()) : 1;
         if(![1,2,3].includes(structure)) throw new Error("Invalid Structure on CSV line "+(i+1)+".");
-        imported.push({id:crypto.randomUUID(),date:parts[0].trim(),time:parts[1].trim(),volume,structure});
+        const balls=parts.length>=5 && parts[4].trim()!=="" ? Number(parts[4].trim()) : 0;
+        if(![0,1,2,3].includes(balls)) throw new Error("Invalid Balls on CSV line "+(i+1)+".");
+        imported.push({id:crypto.randomUUID(),date:parts[0].trim(),time:parts[1].trim(),volume,structure,balls});
       }
       records=imported; selectedId=records[0]?.id || null; saveRecords();
       document.getElementById("importModal").style.display="none"; showList();
