@@ -72,7 +72,7 @@
   .section-label { margin-top:24px; font-size:20px; font-weight:700; border-bottom:1px solid #ccc; padding-bottom:6px; }
   .masked { width:100%; font-size:20px; padding:10px; letter-spacing:1px; }
   .actions { display:flex; gap:10px; margin-top:24px; }
-  .blood-row { display:flex; justify-content:flex-end; align-items:center; gap:8px; margin-top:24px; }
+  .blood-row { display:flex; justify-content:flex-start; align-items:center; gap:8px; margin-top:24px; }
   .blood-row label { margin:0; order:2; font-weight:700; font-size:16px; }
   .blood-row input[type="radio"] { width:20px; height:20px; margin:0; accent-color:#777; order:1; }
   button { font-size:16px; padding:8px 14px; border:1px solid #777; border-radius:5px; background:#f5f5f5; color:#111; }
@@ -99,7 +99,7 @@
 <body>
 <header>
   <h1>Dump</h1>
-  <div class="version">v9</div>
+  <div class="version">v10</div>
 </header>
 
 <nav>
@@ -332,7 +332,7 @@ function renderList() {
     td5.textContent=structureDisplay[r.structure] || structureDisplay[1];
 
     const td6=document.createElement("td");
-    if (Number(r.balls ?? 0) !== 0) {
+    if (Number(r.balls ?? 0) !== 0 || r.blood === "B") {
       const showBtn=document.createElement("button");
       showBtn.type="button";
       showBtn.textContent="Show";
