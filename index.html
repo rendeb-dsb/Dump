@@ -86,7 +86,7 @@
 <body>
 <header>
   <h1>Dump</h1>
-  <div class="version">v2</div>
+  <div class="version">v3</div>
 </header>
 
 <nav>
@@ -109,8 +109,8 @@
 
 <main id="listScreen">
   <table class="list">
-    <colgroup><col class="radioCol"><col class="dayCol"><col class="dateCol"><col class="timeCol"></colgroup>
-    <thead><tr><th></th><th>Day</th><th>Date</th><th>Time</th></tr></thead>
+    <colgroup><col class="radioCol"><col class="dayCol"><col class="dateCol"><col class="timeCol"><col class="volumeCol"></colgroup>
+    <thead><tr><th></th><th>Day</th><th>Date</th><th>Time</th><th>Volume</th></tr></thead>
     <tbody id="rows"></tbody>
   </table>
   <div id="empty" class="empty">No records stored.</div>
@@ -282,7 +282,10 @@ function renderList() {
     td1.textContent=dayNames[new Date(y,m-1,d).getDay()];
     const td2=document.createElement("td"); td2.textContent=r.date;
     const td3=document.createElement("td"); td3.textContent=r.time;
-    tr.append(td0,td1,td2,td3); tbody.appendChild(tr);
+    const td4=document.createElement("td");
+    const volumeDisplay={1:"Ex-Large",2:"Large",3:"Normal",4:"Small"};
+    td4.textContent=volumeDisplay[r.volume] || volumeDisplay[3];
+    tr.append(td0,td1,td2,td3,td4); tbody.appendChild(tr);
   }
 }
 function showList() {
