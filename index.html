@@ -86,7 +86,7 @@
 <body>
 <header>
   <h1>Dump</h1>
-  <div class="version">v16</div>
+  <div class="version">v2</div>
 </header>
 
 <nav>
@@ -135,6 +135,14 @@
   <label for="timeInput">Time</label>
   <input id="timeInput" class="masked" type="text" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="__:__" aria-label="Time">
   <div class="hint">24-hour time, HH:MM</div>
+
+  <label for="volumeInput">Volume</label>
+  <select id="volumeInput" class="masked" aria-label="Volume">
+    <option value="1">Ex-Large</option>
+    <option value="2">Large</option>
+    <option value="3" selected>Normal</option>
+    <option value="4">Small</option>
+  </select>
 
   <div id="editError" class="error"></div>
   <div class="actions">
@@ -367,10 +375,12 @@ function showEdit(mode,id=null) {
   if (mode==="Add") {
     initializeMask(dateEl,"date",todayDate());
     initializeMask(timeEl,"time",nowTime());
+    document.getElementById("volumeInput").value="3";
   } else {
     const r=records.find(x=>x.id===id);
     initializeMask(dateEl,"date",r?.date || "");
     initializeMask(timeEl,"time",r?.time || "");
+    document.getElementById("volumeInput").value=String(r?.volume ?? 3);
   }
   document.getElementById("dateInput").focus();
 }
@@ -571,15 +581,17 @@ document.getElementById("confirmDelete").onclick=()=>{
 document.getElementById("saveBtn").onclick=()=>{
   const date=document.getElementById("dateInput").value.replace(/_/g,"");
   const time=document.getElementById("timeInput").value.replace(/_/g,"");
+  const volume=Number(document.getElementById("volumeInput").value);
   const err=document.getElementById("editError");
   if (!validDate(date)) { err.textContent="Enter a valid date as MM/DD/YYYY."; return; }
   if (!validTime(time)) { err.textContent="Enter a valid 24-hour time as HH:MM."; return; }
+  if (![1,2,3,4].includes(volume)) { err.textContent="Select a valid Volume."; return; }
   if (editingId===null) {
-    const r={id:crypto.randomUUID(),date,time};
+    const r={id:crypto.randomUUID(),date,time,volume};
     records.push(r); selectedId=r.id;
   } else {
     const r=records.find(x=>x.id===editingId);
-    if(r){r.date=date;r.time=time;} selectedId=editingId;
+    if(r){r.date=date;r.time=time;r.volume=volume;} selectedId=editingId;
   }
   saveRecords(); showList();
 };
@@ -589,7 +601,7 @@ document.getElementById("cancelBtn").onclick=()=>{ editingId=null; showList(); }
 document.getElementById("exportBtn").onclick=()=>{
   closeFileMenu();
   sortRecords();
-  const csv="Date,Time\n"+records.map(r=>`${r.date},${r.time}`).join("\n");
+  const csv="Date,Time,Volume\n"+records.map(r=>`${r.date},${r.time},${r.volume ?? 3}`).join("\n");
   const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
   const a=document.createElement("a");
   a.href=URL.createObjectURL(blob); a.download="Dump.csv"; a.click();
@@ -612,13 +624,15 @@ document.getElementById("confirmImport").onclick=()=>{
     try {
       const text = reader.result.replace(/^\uFEFF/, "");
     const lines=text.replace(/\r/g,"").split("\n").filter(x=>x.trim()!=="");
-      const start=/^\s*date\s*,\s*time\s*$/i.test(lines[0]) ? 1 : 0;
+      const start=/^\s*date\s*,\s*time(?:\s*,\s*volume)?\s*$/i.test(lines[0]) ? 1 : 0;
       const imported=[];
       for(let i=start;i<lines.length;i++){
         const parts=lines[i].split(",");
         if(parts.length<2 || !validDate(parts[0].trim()) || !validTime(parts[1].trim()))
           throw new Error("Invalid Date or Time on CSV line "+(i+1)+".");
-        imported.push({id:crypto.randomUUID(),date:parts[0].trim(),time:parts[1].trim()});
+        const volume=parts.length>=3 && parts[2].trim()!=="" ? Number(parts[2].trim()) : 3;
+        if(![1,2,3,4].includes(volume)) throw new Error("Invalid Volume on CSV line "+(i+1)+".");
+        imported.push({id:crypto.randomUUID(),date:parts[0].trim(),time:parts[1].trim(),volume});
       }
       records=imported; selectedId=records[0]?.id || null; saveRecords();
       document.getElementById("importModal").style.display="none"; showList();
