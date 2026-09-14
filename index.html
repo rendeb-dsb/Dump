@@ -95,7 +95,7 @@
 <body>
 <header>
   <h1>Dump</h1>
-  <div class="version">v5</div>
+  <div class="version">v6</div>
 </header>
 
 <nav>
@@ -153,20 +153,28 @@
     <option value="4">Small</option>
   </select>
 
-  <div class="section-label">Attributes</div>
-  <label for="ballsInput">Balls</label>
-  <select id="ballsInput" class="masked" aria-label="Balls">
-    <option value="0" selected></option>
-    <option value="1">Pellet</option>
-    <option value="2">Marble</option>
-    <option value="3">Stone</option>
-  </select>
-
   <label for="structureInput">Structure</label>
   <select id="structureInput" class="masked" aria-label="Structure">
     <option value="1" selected>Firm</option>
     <option value="2">Loose</option>
     <option value="3">Liquid</option>
+  </select>
+
+  <div class="section-label">Attributes</div>
+  <label for="ballsInput">Balls</label>
+  <select id="ballsInput" class="masked" aria-label="Balls">
+    <option value="0" selected>n/a</option>
+    <option value="1">Pellet</option>
+    <option value="2">Marble</option>
+    <option value="3">Stone</option>
+  </select>
+
+  <label for="sizeInput">Size</label>
+  <select id="sizeInput" class="masked" aria-label="Size">
+    <option value="0" selected>n/a</option>
+    <option value="1">Small</option>
+    <option value="2">Medium</option>
+    <option value="3">Large</option>
   </select>
 
   <div id="editError" class="error"></div>
@@ -190,7 +198,7 @@
   <div class="modal">
     <h3>Import CSV</h3>
     <input id="fileInput" type="file" accept=".csv,text/csv">
-    <div class="hint">Choose a CSV file containing Date,Time,Volume,Structure,Balls values.</div>
+    <div class="hint">Choose a CSV file containing Date,Time,Volume,Structure,Balls,Size values.</div>
     <div id="importError" class="error"></div>
     <div class="actions">
       <button id="confirmImport">Import</button>
@@ -424,6 +432,7 @@ function showEdit(mode,id=null) {
     document.getElementById("volumeInput").value="3";
     document.getElementById("structureInput").value="1";
     document.getElementById("ballsInput").value="0";
+    document.getElementById("sizeInput").value="0";
   } else {
     const r=records.find(x=>x.id===id);
     initializeMask(dateEl,"date",r?.date || "");
@@ -431,12 +440,14 @@ function showEdit(mode,id=null) {
     document.getElementById("volumeInput").value=String(r?.volume ?? 3);
     document.getElementById("structureInput").value=String(r?.structure ?? 1);
     document.getElementById("ballsInput").value=String(r?.balls ?? 0);
+    document.getElementById("sizeInput").value=String(r?.size ?? 0);
   }
   dateEl.readOnly = readOnly;
   timeEl.readOnly = readOnly;
   document.getElementById("volumeInput").disabled = readOnly;
   document.getElementById("structureInput").disabled = readOnly;
   document.getElementById("ballsInput").disabled = readOnly;
+  document.getElementById("sizeInput").disabled = readOnly;
   document.getElementById("saveBtn").hidden = readOnly;
   document.getElementById("dateInput").focus();
 }
@@ -640,18 +651,20 @@ document.getElementById("saveBtn").onclick=()=>{
   const volume=Number(document.getElementById("volumeInput").value);
   const structure=Number(document.getElementById("structureInput").value);
   const balls=Number(document.getElementById("ballsInput").value);
+  const size=Number(document.getElementById("sizeInput").value);
   const err=document.getElementById("editError");
   if (!validDate(date)) { err.textContent="Enter a valid date as MM/DD/YYYY."; return; }
   if (!validTime(time)) { err.textContent="Enter a valid 24-hour time as HH:MM."; return; }
   if (![1,2,3,4].includes(volume)) { err.textContent="Select a valid Volume."; return; }
   if (![1,2,3].includes(structure)) { err.textContent="Select a valid Structure."; return; }
   if (![0,1,2,3].includes(balls)) { err.textContent="Select a valid Balls value."; return; }
+  if (![0,1,2,3].includes(size)) { err.textContent="Select a valid Size value."; return; }
   if (editingId===null) {
-    const r={id:crypto.randomUUID(),date,time,volume,structure,balls};
+    const r={id:crypto.randomUUID(),date,time,volume,structure,balls,size};
     records.push(r); selectedId=r.id;
   } else {
     const r=records.find(x=>x.id===editingId);
-    if(r){r.date=date;r.time=time;r.volume=volume;r.structure=structure;r.balls=balls;} selectedId=editingId;
+    if(r){r.date=date;r.time=time;r.volume=volume;r.structure=structure;r.balls=balls;r.size=size;} selectedId=editingId;
   }
   saveRecords(); showList();
 };
@@ -661,7 +674,7 @@ document.getElementById("cancelBtn").onclick=()=>{ editingId=null; showList(); }
 document.getElementById("exportBtn").onclick=()=>{
   closeFileMenu();
   sortRecords();
-  const csv="Date,Time,Volume,Structure,Balls\n"+records.map(r=>`${r.date},${r.time},${r.volume ?? 3},${r.structure ?? 1},${r.balls ?? 0}`).join("\n");
+  const csv="Date,Time,Volume,Structure,Balls,Size\n"+records.map(r=>`${r.date},${r.time},${r.volume ?? 3},${r.structure ?? 1},${r.balls ?? 0},${r.size ?? 0}`).join("\n");
   const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
   const a=document.createElement("a");
   a.href=URL.createObjectURL(blob); a.download="Dump.csv"; a.click();
@@ -684,7 +697,7 @@ document.getElementById("confirmImport").onclick=()=>{
     try {
       const text = reader.result.replace(/^\uFEFF/, "");
     const lines=text.replace(/\r/g,"").split("\n").filter(x=>x.trim()!=="");
-      const start=/^\s*date\s*,\s*time(?:\s*,\s*volume)?(?:\s*,\s*structure)?(?:\s*,\s*balls)?\s*$/i.test(lines[0]) ? 1 : 0;
+      const start=/^\s*date\s*,\s*time(?:\s*,\s*volume)?(?:\s*,\s*structure)?(?:\s*,\s*balls)?(?:\s*,\s*size)?\s*$/i.test(lines[0]) ? 1 : 0;
       const imported=[];
       for(let i=start;i<lines.length;i++){
         const parts=lines[i].split(",");
@@ -696,7 +709,9 @@ document.getElementById("confirmImport").onclick=()=>{
         if(![1,2,3].includes(structure)) throw new Error("Invalid Structure on CSV line "+(i+1)+".");
         const balls=parts.length>=5 && parts[4].trim()!=="" ? Number(parts[4].trim()) : 0;
         if(![0,1,2,3].includes(balls)) throw new Error("Invalid Balls on CSV line "+(i+1)+".");
-        imported.push({id:crypto.randomUUID(),date:parts[0].trim(),time:parts[1].trim(),volume,structure,balls});
+        const size=parts.length>=6 && parts[5].trim()!=="" ? Number(parts[5].trim()) : 0;
+        if(![0,1,2,3].includes(size)) throw new Error("Invalid Size on CSV line "+(i+1)+".");
+        imported.push({id:crypto.randomUUID(),date:parts[0].trim(),time:parts[1].trim(),volume,structure,balls,size});
       }
       records=imported; selectedId=records[0]?.id || null; saveRecords();
       document.getElementById("importModal").style.display="none"; showList();
