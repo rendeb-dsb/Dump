@@ -99,7 +99,7 @@
 <body>
 <header>
   <h1>Dump</h1>
-  <div class="version">v13</div>
+  <div class="version">v14</div>
 </header>
 
 <nav>
@@ -226,19 +226,91 @@
 
 <script>
 const STORAGE_KEY = "dump.records.v1";
-let records = loadRecords();
+const DB_NAME = "DumpDB";
+const DB_VERSION = 1;
+const DB_STORE = "records";
+const DB_META = "meta";
+let records = [];
 let selectedId = null;
 let editingId = null;
+let dbPromise = null;
 
-function loadRecords() {
-  try {
-    const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-    return Array.isArray(data) ? data : [];
-  } catch { return []; }
+function normalizeRecord(r) {
+  return {
+    id: r?.id || crypto.randomUUID(),
+    date: String(r?.date ?? ""),
+    time: String(r?.time ?? ""),
+    volume: [1,2,3,4].includes(Number(r?.volume)) ? Number(r.volume) : 3,
+    structure: [1,2,3].includes(Number(r?.structure)) ? Number(r.structure) : 1,
+    balls: [0,1,2,3].includes(Number(r?.balls)) ? Number(r.balls) : 0,
+    size: [0,1,2,3].includes(Number(r?.size)) ? Number(r.size) : 0,
+    blood: r?.blood === "B" ? "B" : ""
+  };
 }
-function saveRecords() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+
+function openDatabase() {
+  if (dbPromise) return dbPromise;
+  dbPromise = new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(DB_STORE)) db.createObjectStore(DB_STORE, { keyPath: "id" });
+      if (!db.objectStoreNames.contains(DB_META)) db.createObjectStore(DB_META);
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error("Unable to open persistent storage."));
+  });
+  return dbPromise;
 }
+
+async function initializeStorage() {
+  const db = await openDatabase();
+  const needsMigration = await new Promise((resolve, reject) => {
+    const tx = db.transaction(DB_META, "readonly");
+    const req = tx.objectStore(DB_META).get("migrated");
+    req.onsuccess = () => resolve(req.result !== true);
+    req.onerror = () => reject(req.error);
+  });
+
+  if (needsMigration) {
+    let legacy = [];
+    try {
+      const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+      if (Array.isArray(parsed)) legacy = parsed.map(normalizeRecord);
+    } catch { legacy = []; }
+
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction([DB_STORE, DB_META], "readwrite");
+      const store = tx.objectStore(DB_STORE);
+      for (const r of legacy) store.put(r);
+      tx.objectStore(DB_META).put(true, "migrated");
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error || new Error("Unable to migrate existing data."));
+      tx.onabort = () => reject(tx.error || new Error("Unable to migrate existing data."));
+    });
+  }
+
+  records = await new Promise((resolve, reject) => {
+    const tx = db.transaction(DB_STORE, "readonly");
+    const req = tx.objectStore(DB_STORE).getAll();
+    req.onsuccess = () => resolve((req.result || []).map(normalizeRecord));
+    req.onerror = () => reject(req.error || new Error("Unable to read persistent storage."));
+  });
+}
+
+async function saveRecords() {
+  const db = await openDatabase();
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction(DB_STORE, "readwrite");
+    const store = tx.objectStore(DB_STORE);
+    store.clear();
+    for (const r of records) store.put(normalizeRecord(r));
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error || new Error("Unable to save data."));
+    tx.onabort = () => reject(tx.error || new Error("Unable to save data."));
+  });
+}
+
 function sortRecords() {
   records.sort((a,b) => {
     const [am,ad,ay] = a.date.split("/").map(Number);
@@ -727,11 +799,24 @@ document.getElementById("confirmImport").onclick=()=>{
       const lines=text.replace(/\r/g,"").split("\n").filter(x=>x.trim()!=="");
       if(!lines.length) throw new Error("CSV file is empty.");
 
-      // Accept either the Dump export layout or the Zoo_v8 layout.
-      // Header names are used so column order does not matter.
-      const first=lines[0].split(",").map(x=>x.trim().toLowerCase());
+      function parseCSVLine(line) {
+        const out=[]; let cur=""; let quoted=false;
+        for(let i=0;i<line.length;i++){
+          const ch=line[i];
+          if(ch==='"'){
+            if(quoted && line[i+1]==='"'){cur+='"'; i++;}
+            else quoted=!quoted;
+          } else if(ch===',' && !quoted){ out.push(cur); cur=""; }
+          else cur+=ch;
+        }
+        if(quoted) throw new Error("The CSV contains an unterminated quoted field.");
+        out.push(cur);
+        return out;
+      }
+
+      const first=parseCSVLine(lines[0]).map(x=>x.trim().toLowerCase());
       const hasHeader=first.includes("date") && first.includes("time");
-      let start=0, idx=null;
+      let start=0, idx=null, zooFormat=false;
       if(hasHeader){
         start=1;
         idx={
@@ -743,22 +828,35 @@ document.getElementById("confirmImport").onclick=()=>{
           size:first.indexOf("size"),
           blood:first.indexOf("blood")
         };
+        zooFormat = first.includes("ball") && !first.includes("balls");
         if(idx.date<0 || idx.time<0 || idx.volume<0 || idx.structure<0 || idx.balls<0)
           throw new Error("CSV must contain Date, Time, Volume, Structure, and Balls (or Ball) columns.");
       }
 
       const imported=[];
       for(let i=start;i<lines.length;i++){
-        const parts=lines[i].split(",");
+        const recordNo=i-start+1;
+        const rawLine=lines[i];
+        let parts;
+        try { parts=parseCSVLine(rawLine); }
+        catch(e) {
+          throw new Error(`Import error — Record ${recordNo}:\n${rawLine}\nReason: ${e.message}`);
+        }
+
+        const expected = hasHeader ? (zooFormat ? 6 : 7) : (parts.length===6 ? 6 : 7);
+        if(parts.length !== expected) {
+          throw new Error(`Import error — Record ${recordNo}:\n${rawLine}\nReason: The record contains ${parts.length} elements; expected ${expected}.`);
+        }
+
         const get=(name,pos)=>{
           const n=hasHeader ? idx[name] : pos;
           return n>=0 && n<parts.length ? parts[n].trim() : "";
         };
+
         const date=get("date",0);
-        // Valid dates beyond today's local date are ignored rather than imported.
-        // Invalid dates still produce an import error.
         if(!validDate(date))
-          throw new Error("Invalid Date or Time on CSV line "+(i+1)+".");
+          throw new Error(`Import error — Record ${recordNo}:\n${rawLine}\nReason: The Date value "${date}" is invalid; expected mm/dd/yyyy.`);
+
         const [dm,dd,dy]=date.split("/").map(Number);
         const now=new Date();
         const todayKey=now.getFullYear()*10000+(now.getMonth()+1)*100+now.getDate();
@@ -766,43 +864,53 @@ document.getElementById("confirmImport").onclick=()=>{
         if(rowDateKey>todayKey) continue;
 
         let time=get("time",1);
-        // Accept both H:MM and HH:MM on import, storing HH:MM.
         const tm=time.match(/^(\d{1,2}):(\d{2})$/);
         if(tm) time=tm[1].padStart(2,"0")+":"+tm[2];
         if(!validTime(time))
-          throw new Error("Invalid Date or Time on CSV line "+(i+1)+".");
+          throw new Error(`Import error — Record ${recordNo}:\n${rawLine}\nReason: The Time value "${time}" is invalid; expected HH:MM in 24-hour time.`);
 
         const volumeText=get("volume",2);
         const volume=volumeText!=="" ? Number(volumeText) : 3;
-        if(![1,2,3,4].includes(volume)) throw new Error("Invalid Volume on CSV line "+(i+1)+".");
+        if(![1,2,3,4].includes(volume))
+          throw new Error(`Import error — Record ${recordNo}:\n${rawLine}\nReason: The Volume value "${volumeText}" is invalid; expected 1, 2, 3, or 4.`);
 
         const structureText=get("structure",3);
         let structure=structureText!=="" ? Number(structureText) : 1;
-        // Zoo CSV files use the opposite Structure numbering from Dump:
-        // CSV 3 -> local 1, CSV 2 -> local 2, CSV 1 -> local 3.
-        // Dump's own export uses the plural "Balls" header, so leave that
-        // format unchanged.
-        if(hasHeader && first[idx.balls] === "ball" && structureText!==""){
+        if(zooFormat && structureText!==""){
           const structureMap={1:3,2:2,3:1};
           structure=structureMap[structure];
         }
-        if(![1,2,3].includes(structure)) throw new Error("Invalid Structure on CSV line "+(i+1)+".");
+        if(![1,2,3].includes(structure))
+          throw new Error(`Import error — Record ${recordNo}:\n${rawLine}\nReason: The Structure value "${structureText}" is invalid; expected 1, 2, or 3.`);
 
         const ballsText=get("balls",4);
         const balls=ballsText!=="" ? Number(ballsText) : 0;
-        if(![0,1,2,3].includes(balls)) throw new Error("Invalid Balls on CSV line "+(i+1)+".");
+        if(![0,1,2,3].includes(balls))
+          throw new Error(`Import error — Record ${recordNo}:\n${rawLine}\nReason: The Balls value "${ballsText}" is invalid; expected 0, 1, 2, or 3.`);
 
         const sizeText=get("size",5);
         const size=sizeText!=="" ? Number(sizeText) : 0;
-        if(![0,1,2,3].includes(size)) throw new Error("Invalid Size on CSV line "+(i+1)+".");
+        if(![0,1,2,3].includes(size))
+          throw new Error(`Import error — Record ${recordNo}:\n${rawLine}\nReason: The Size value "${sizeText}" is invalid; expected 0, 1, 2, or 3.`);
 
         const bloodText=get("blood",6).toUpperCase();
+        if(bloodText!=="" && bloodText!=="B")
+          throw new Error(`Import error — Record ${recordNo}:\n${rawLine}\nReason: The Blood value "${bloodText}" is invalid; expected B or blank.`);
         const blood=bloodText==="B" ? "B" : "";
+
         imported.push({id:crypto.randomUUID(),date,time,volume,structure,balls,size,blood});
       }
-      records=imported; selectedId=records[0]?.id || null; saveRecords();
-      document.getElementById("importModal").style.display="none"; showList();
-    } catch(e){err.textContent=e.message || "Import failed."; }
+
+      records=imported;
+      selectedId=records[0]?.id || null;
+      saveRecords().catch(e=>{
+        err.textContent="Import error: Unable to save the imported records.";
+      });
+      document.getElementById("importModal").style.display="none";
+      showList();
+    } catch(e){
+      err.textContent=e.message || "Import failed.";
+    }
   };
   reader.readAsText(file);
 };
@@ -810,8 +918,16 @@ document.getElementById("confirmImport").onclick=()=>{
 document.getElementById("quitBtn").onclick=()=>{closeFileMenu();document.getElementById("quitModal").style.display="flex";};
 document.getElementById("closeQuit").onclick=()=>document.getElementById("quitModal").style.display="none";
 
-renderList();
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+(async function initApp(){
+  try {
+    await initializeStorage();
+    renderList();
+  } catch (e) {
+    document.getElementById("empty").textContent = "Unable to open persistent storage.";
+    document.getElementById("empty").style.display = "block";
+  }
+})();
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js", {updateViaCache:"none"}).catch(()=>{});
 </script>
 </body>
 </html>
