@@ -113,7 +113,7 @@
     <h1>Dump</h1>
     <div id="timeSinceLastAdded" class="time-since">Time since last record added:  00:00:00</div>
   </div>
-  <div class="version">v27</div>
+  <div class="version">v28</div>
 </header>
 
 <nav>
@@ -507,11 +507,11 @@ function renderList() {
     td5.textContent=structureDisplay[r.structure] || structureDisplay[1];
 
     const td6=document.createElement("td");
-    const ballsDisplay={0:"n/a",1:"Pellet",2:"Marble",3:"Stone"};
+    const ballsDisplay={1:"Pellet",2:"Marble",3:"Stone"};
     td6.textContent=ballsDisplay[Number(r.balls)] || "";
 
     const td7=document.createElement("td");
-    const sizeDisplay={0:"n/a",1:"Small",2:"Medium",3:"Large"};
+    const sizeDisplay={1:"Small",2:"Medium",3:"Large"};
     td7.textContent=sizeDisplay[Number(r.size)] || "";
 
     const td8=document.createElement("td");
