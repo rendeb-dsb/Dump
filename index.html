@@ -73,7 +73,7 @@
   .entry-field label { margin:0; font-weight:700; font-size:16px; white-space:nowrap; }
   .entry-field .hint { margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .masked { width:100%; min-width:0; box-sizing:border-box; font-size:16px; padding:6px 7px; letter-spacing:1px; }
-  .entry-field select.masked { letter-spacing:0; width:72px; justify-self:start; }
+  .entry-field select.masked { letter-spacing:0; width:90px; justify-self:start; }
   .section-label { margin-top:18px; margin-bottom:10px; font-size:18px; font-weight:700; border-bottom:1px solid #ccc; padding-bottom:5px; }
   .blood-field input[type="radio"] { width:20px; height:20px; margin:0; accent-color:#777; justify-self:start; }
   .actions { display:flex; gap:10px; margin-top:18px; }
@@ -95,15 +95,15 @@
     .list .volumeCol { width:90px; }
     .list .structureCol { width:80px; }
     .list .showCol { width:55px; }
-    .entry-grid { grid-template-columns:1fr; gap:9px; }
-    .entry-field { grid-template-columns:auto minmax(80px,150px) 1fr; }
+    .entry-grid { grid-template-columns:repeat(2, minmax(0,1fr)); gap:9px 12px; }
+    .entry-field { grid-template-columns:auto 90px 1fr; }
   }
 </style>
 </head>
 <body>
 <header>
   <h1>Dump</h1>
-  <div class="version">v16</div>
+  <div class="version">v17</div>
 </header>
 
 <nav>
