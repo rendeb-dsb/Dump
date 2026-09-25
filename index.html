@@ -73,7 +73,10 @@
   .entry-field label { margin:0; font-weight:700; font-size:16px; white-space:nowrap; }
   .entry-field .hint { margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .masked { width:100%; min-width:0; box-sizing:border-box; font-size:16px; padding:6px 7px; letter-spacing:1px; }
+  #dateInput { width:160px; }
+  #timeInput { width:120px; }
   .entry-field select.masked { letter-spacing:0; width:90px; justify-self:start; }
+  #sizeInput { width:113px; }
   .section-label { margin-top:18px; margin-bottom:10px; font-size:18px; font-weight:700; border-bottom:1px solid #ccc; padding-bottom:5px; }
   .blood-field input[type="radio"] { width:20px; height:20px; margin:0; accent-color:#777; justify-self:start; }
   .actions { display:flex; gap:10px; margin-top:18px; }
@@ -96,14 +99,16 @@
     .list .structureCol { width:80px; }
     .list .showCol { width:55px; }
     .entry-grid { grid-template-columns:repeat(2, minmax(0,1fr)); gap:9px 12px; }
-    .entry-field { grid-template-columns:auto 90px 1fr; }
+    .entry-field { grid-template-columns:auto 1fr; }
+    #dateInput { width:160px; }
+    #timeInput { width:120px; }
   }
 </style>
 </head>
 <body>
 <header>
   <h1>Dump</h1>
-  <div class="version">v18</div>
+  <div class="version">v19</div>
 </header>
 
 <nav>
@@ -150,13 +155,13 @@
     <div class="entry-field">
       <label for="dateInput">Date:</label>
       <input id="dateInput" class="masked" type="text" inputmode="numeric" autocomplete="off" maxlength="10" placeholder="__/__/____" aria-label="Date">
-      <span class="hint">MM/DD/YYYY</span>
+      
     </div>
 
     <div class="entry-field">
       <label for="timeInput">Time:</label>
       <input id="timeInput" class="masked" type="text" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="__:__" aria-label="Time">
-      <span class="hint">24-hour HH:MM</span>
+      
     </div>
 
     <div class="entry-field">
@@ -234,6 +239,14 @@
       <button id="confirmImport">Import</button>
       <button id="cancelImport">Cancel</button>
     </div>
+  </div>
+</div>
+
+<div id="noticeModal" class="modal-backdrop">
+  <div class="modal">
+    <h3 id="noticeTitle">Notice</h3>
+    <p id="noticeMessage"></p>
+    <div class="actions"><button id="noticeOk">OK</button></div>
   </div>
 </div>
 
@@ -560,6 +573,13 @@ function showEdit(mode,id=null) {
   document.getElementById("saveBtn").hidden = readOnly;
   document.getElementById("dateInput").focus();
 }
+function showNotice(message, title="Notice") {
+  document.getElementById("noticeTitle").textContent = title;
+  document.getElementById("noticeMessage").textContent = message;
+  document.getElementById("noticeModal").style.display = "flex";
+}
+function closeNotice() { document.getElementById("noticeModal").style.display = "none"; }
+document.getElementById("noticeOk").onclick = closeNotice;
 function selectedRecord() { return records.find(r=>r.id===selectedId); }
 
 const MASKS = {
@@ -754,17 +774,17 @@ document.getElementById("ballsInput").addEventListener("change", ()=>{
 
 document.getElementById("changeBtn").onclick=()=>{
   closeFileMenu();
-  if (!selectedRecord()) return alert("Please select a record.");
+  if (!selectedRecord()) return showNotice("Please select a record.");
   showEdit("Change",selectedId);
 };
 document.getElementById("deleteBtn").onclick=()=>{
   closeFileMenu();
-  if (!selectedRecord()) return alert("Please select a record.");
+  if (!selectedRecord()) return showNotice("Please select a record.");
   document.getElementById("deleteModal").style.display="flex";
 };
 document.getElementById("showMenuBtn").onclick=()=>{
   closeFileMenu();
-  if (!selectedRecord()) return alert("Please select a record.");
+  if (!selectedRecord()) return showNotice("Please select a record.");
   showEdit("Show", selectedId);
 };
 document.getElementById("cancelDelete").onclick=()=>document.getElementById("deleteModal").style.display="none";
