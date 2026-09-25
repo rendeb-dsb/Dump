@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dump-pwa-v23';
+const CACHE_NAME = 'dump-pwa-v24';
 const ASSETS = ['./', './index.html', './manifest.json', './sw.js'];
 
 self.addEventListener('install', event => {

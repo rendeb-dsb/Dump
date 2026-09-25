@@ -60,8 +60,8 @@
   .list .volumeCol { width:90px; }
   .list .structureCol { width:80px; }
   .list .ballsCol { width:80px; }
-  .list .sizeCol { width:70px; }
-  .list .bloodCol { width:65px; }
+  .list .sizeCol { width:80px; }
+  .list .bloodCol { width:60px; }
   .list td { border-left:1px solid #ccc; border-right:1px solid #ccc; border-bottom:1px solid #ccc; height:27px; line-height:27px; font-size:14px; }
   .list td:first-child { text-align:center; }
   .list td:last-child { text-align:center; }
@@ -98,9 +98,6 @@
     .list .timeCol { width:70px; }
     .list .volumeCol { width:90px; }
     .list .structureCol { width:80px; }
-  .list .ballsCol { width:80px; }
-  .list .sizeCol { width:70px; }
-  .list .bloodCol { width:65px; }
       .entry-grid { grid-template-columns:repeat(2, minmax(0,1fr)); gap:9px 12px; }
     .entry-field { grid-template-columns:auto 1fr; }
     #dateInput { width:128px; }
@@ -111,7 +108,7 @@
 <body>
 <header>
   <h1>Dump</h1>
-  <div class="version">v23</div>
+  <div class="version">v24</div>
 </header>
 
 <nav>
@@ -439,14 +436,26 @@ function renderList() {
     const td5=document.createElement("td");
     const structureDisplay={1:"Firm",2:"Loose",3:"Liquid"};
     td5.textContent=structureDisplay[r.structure] || structureDisplay[1];
+
     const td6=document.createElement("td");
     const ballsDisplay={0:"n/a",1:"Pellet",2:"Marble",3:"Stone"};
-    td6.textContent=ballsDisplay[Number(r.balls ?? 0)] || "n/a";
+    td6.textContent=ballsDisplay[Number(r.balls)] || "n/a";
+
     const td7=document.createElement("td");
     const sizeDisplay={0:"n/a",1:"Small",2:"Medium",3:"Large"};
-    td7.textContent=sizeDisplay[Number(r.size ?? 0)] || "n/a";
+    td7.textContent=sizeDisplay[Number(r.size)] || "n/a";
+
     const td8=document.createElement("td");
-    td8.textContent=r.blood === "B" ? "Blood" : "";
+    td8.style.textAlign="center";
+    const bloodRadio=document.createElement("input");
+    bloodRadio.type="radio";
+    bloodRadio.checked=(r.blood === "B");
+    bloodRadio.disabled=true;
+    bloodRadio.setAttribute("aria-label", "Blood");
+    bloodRadio.style.width="18px";
+    bloodRadio.style.height="18px";
+    bloodRadio.style.margin="0";
+    td8.appendChild(bloodRadio);
 
     tr.append(td0,td1,td2,td3,td4,td5,td6,td7,td8); tbody.appendChild(tr);
   }
