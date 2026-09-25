@@ -103,7 +103,7 @@
 <body>
 <header>
   <h1>Dump</h1>
-  <div class="version">v17</div>
+  <div class="version">v18</div>
 </header>
 
 <nav>
@@ -113,6 +113,7 @@
       <button id="addBtn">Add...</button>
       <button id="changeBtn">Change</button>
       <button id="deleteBtn">Delete</button>
+      <button id="showMenuBtn">Show</button>
       <button disabled>────────</button>
       <button id="importBtn">Import</button>
       <button id="exportBtn">Export</button>
@@ -733,6 +734,10 @@ dateEl.addEventListener("blur", ()=>maskedBlur(dateEl,"date"));
 timeEl.addEventListener("blur", ()=>maskedBlur(timeEl,"time"));
 
 function closeFileMenu(){ const d=document.querySelector("details"); if(d) d.removeAttribute("open"); }
+document.addEventListener("click", (e)=>{
+  const detailsEl=document.querySelector("nav details");
+  if(detailsEl && !detailsEl.contains(e.target)) closeFileMenu();
+});
 document.getElementById("listBtn").onclick=()=>{closeFileMenu();showList();};
 document.getElementById("statsBtn").onclick=showStats;
 document.getElementById("addBtn").onclick=()=>{closeFileMenu();showEdit("Add");};
@@ -756,6 +761,11 @@ document.getElementById("deleteBtn").onclick=()=>{
   closeFileMenu();
   if (!selectedRecord()) return alert("Please select a record.");
   document.getElementById("deleteModal").style.display="flex";
+};
+document.getElementById("showMenuBtn").onclick=()=>{
+  closeFileMenu();
+  if (!selectedRecord()) return alert("Please select a record.");
+  showEdit("Show", selectedId);
 };
 document.getElementById("cancelDelete").onclick=()=>document.getElementById("deleteModal").style.display="none";
 document.getElementById("confirmDelete").onclick=()=>{
