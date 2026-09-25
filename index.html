@@ -14,7 +14,9 @@
     height:110px; padding:18px 32px 0; border-bottom:1px solid #bbb;
     display:flex; justify-content:space-between; align-items:flex-start;
   }
+  .title-block { display:flex; flex-direction:column; align-items:flex-start; }
   h1 { margin:0; font-size:54px; line-height:1; font-weight:700; letter-spacing:-1px; }
+  .time-since { margin-top:8px; font-size:16px; color:#555; white-space:nowrap; }
   .version { font-size:18px; color:#666; margin-top:18px; }
   nav { background:#eee; border-bottom:1px solid #bbb; height:43px; padding:0; display:flex; align-items:stretch; position:-webkit-sticky; position:sticky; top:0; z-index:40; }
   details { width:auto; }
@@ -107,15 +109,18 @@
 </head>
 <body>
 <header>
-  <h1>Dump</h1>
-  <div class="version">v24</div>
+  <div class="title-block">
+    <h1>Dump</h1>
+    <div id="timeSinceLastAdded" class="time-since">Time since last record added:  00:00:00</div>
+  </div>
+  <div class="version">v25</div>
 </header>
 
 <nav>
   <details>
     <summary>Actions</summary>
     <div class="menu">
-      <button id="addBtn">Add...</button>
+      <button id="addBtn">Add</button>
       <button id="changeBtn">Change</button>
       <button id="deleteBtn">Delete</button>
       <button id="showMenuBtn">Show</button>
@@ -264,6 +269,7 @@ const DB_NAME = "DumpDB";
 const DB_VERSION = 1;
 const DB_STORE = "records";
 const DB_META = "meta";
+const LAST_ADDED_META_KEY = "lastAddedAt";
 let records = [];
 let selectedId = null;
 let editingId = null;
@@ -330,6 +336,52 @@ async function initializeStorage() {
     req.onsuccess = () => resolve((req.result || []).map(normalizeRecord));
     req.onerror = () => reject(req.error || new Error("Unable to read persistent storage."));
   });
+
+  lastAddedAt = await getLastAddedAt();
+  if (lastAddedAt === null) {
+    // Older Dump records did not retain the time at which they were added.
+    // Start the new elapsed-time measurement from the v25 installation.
+    lastAddedAt = Date.now();
+    await setLastAddedAt(lastAddedAt);
+  }
+  updateLastAddedDisplay();
+}
+
+async function getLastAddedAt() {
+  const db = await openDatabase();
+  return await new Promise((resolve, reject) => {
+    const tx = db.transaction(DB_META, "readonly");
+    const req = tx.objectStore(DB_META).get(LAST_ADDED_META_KEY);
+    req.onsuccess = () => resolve(typeof req.result === "number" ? req.result : null);
+    req.onerror = () => reject(req.error || new Error("Unable to read metadata."));
+  });
+}
+
+async function setLastAddedAt(timestamp) {
+  const db = await openDatabase();
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction(DB_META, "readwrite");
+    tx.objectStore(DB_META).put(timestamp, LAST_ADDED_META_KEY);
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error || new Error("Unable to save metadata."));
+    tx.onabort = () => reject(tx.error || new Error("Unable to save metadata."));
+  });
+}
+
+function formatElapsedSince(timestamp) {
+  if (typeof timestamp !== "number" || !Number.isFinite(timestamp)) return "00:00:00";
+  const diff = Math.max(0, Date.now() - timestamp);
+  const totalMinutes = Math.floor(diff / 60000);
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+  return `${String(days).padStart(2,"0")}:${String(hours).padStart(2,"0")}:${String(minutes).padStart(2,"0")}`;
+}
+
+let lastAddedAt = null;
+function updateLastAddedDisplay() {
+  const el = document.getElementById("timeSinceLastAdded");
+  if (el) el.textContent = `Time since last record added:  ${formatElapsedSince(lastAddedAt)}`;
 }
 
 async function saveRecords() {
@@ -344,6 +396,8 @@ async function saveRecords() {
     tx.onabort = () => reject(tx.error || new Error("Unable to save data."));
   });
 }
+
+setInterval(updateLastAddedDisplay, 30000);
 
 function sortRecords() {
   records.sort((a,b) => {
@@ -820,6 +874,8 @@ document.getElementById("saveBtn").onclick=()=>{
   if (editingId===null) {
     const r={id:crypto.randomUUID(),date,time,volume,structure,balls,size,blood};
     records.push(r); selectedId=r.id;
+    lastAddedAt=Date.now();
+    setLastAddedAt(lastAddedAt).catch(()=>{});
   } else {
     const r=records.find(x=>x.id===editingId);
     if(r){r.date=date;r.time=time;r.volume=volume;r.structure=structure;r.balls=balls;r.size=size;r.blood=blood;} selectedId=editingId;
@@ -961,6 +1017,10 @@ document.getElementById("confirmImport").onclick=()=>{
 
       records=imported;
       selectedId=records[0]?.id || null;
+      if (imported.length) {
+        lastAddedAt=Date.now();
+        setLastAddedAt(lastAddedAt).catch(()=>{});
+      }
       saveRecords().catch(e=>{
         err.textContent="Import error: Unable to save the imported records.";
       });
