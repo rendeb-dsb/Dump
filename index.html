@@ -113,7 +113,7 @@
     <h1>Dump</h1>
     <div id="timeSinceLastAdded" class="time-since">Time since last record added:  00:00:00</div>
   </div>
-  <div class="version">v29</div>
+  <div class="version">v30</div>
 </header>
 
 <nav>
@@ -507,21 +507,29 @@ function renderList() {
     td5.textContent=structureDisplay[r.structure] || structureDisplay[1];
 
     const td6=document.createElement("td");
-    // List: no Balls value (0, blank, or invalid) is displayed as an empty cell.
     const ballsDisplay={1:"Pellet",2:"Marble",3:"Stone"};
-    const ballsValue=Number(r.balls);
-    td6.textContent=(ballsValue >= 1 && ballsValue <= 3) ? ballsDisplay[ballsValue] : "";
+    const ballsValue=parseInt(r.balls,10);
+    // List rule: 1-3 display their names; 0, empty, or anything else displays NOTHING.
+    if (Number.isInteger(ballsValue) && ballsValue >= 1 && ballsValue <= 3) {
+      td6.textContent=ballsDisplay[ballsValue];
+    } else {
+      td6.textContent="";
+    }
 
     const td7=document.createElement("td");
-    // List: no Size value (0, blank, or invalid) is displayed as an empty cell.
     const sizeDisplay={1:"Small",2:"Medium",3:"Large"};
-    const sizeValue=Number(r.size);
-    td7.textContent=(sizeValue >= 1 && sizeValue <= 3) ? sizeDisplay[sizeValue] : "";
+    const sizeValue=parseInt(r.size,10);
+    // List rule: 1-3 display their names; 0, empty, or anything else displays NOTHING.
+    if (Number.isInteger(sizeValue) && sizeValue >= 1 && sizeValue <= 3) {
+      td7.textContent=sizeDisplay[sizeValue];
+    } else {
+      td7.textContent="";
+    }
 
     const td8=document.createElement("td");
     td8.style.textAlign="center";
-    // List: only an actual B value gets a Blood radio button. Empty means no control at all.
-    if (String(r.blood || "").trim().toUpperCase() === "B") {
+    // List rule: show a Blood radio button ONLY when the stored value is B.
+    if (String(r.blood ?? "").trim().toUpperCase() === "B") {
       const bloodRadio=document.createElement("input");
       bloodRadio.type="radio";
       bloodRadio.checked=true;
