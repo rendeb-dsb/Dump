@@ -113,7 +113,7 @@
     <h1>Dump</h1>
     <div id="timeSinceLastAdded" class="time-since">Time since last record added:  00:00:00</div>
   </div>
-  <div class="version">v26</div>
+  <div class="version">v27</div>
 </header>
 
 <nav>
@@ -508,23 +508,25 @@ function renderList() {
 
     const td6=document.createElement("td");
     const ballsDisplay={0:"n/a",1:"Pellet",2:"Marble",3:"Stone"};
-    td6.textContent=ballsDisplay[Number(r.balls)] || "n/a";
+    td6.textContent=ballsDisplay[Number(r.balls)] || "";
 
     const td7=document.createElement("td");
     const sizeDisplay={0:"n/a",1:"Small",2:"Medium",3:"Large"};
-    td7.textContent=sizeDisplay[Number(r.size)] || "n/a";
+    td7.textContent=sizeDisplay[Number(r.size)] || "";
 
     const td8=document.createElement("td");
     td8.style.textAlign="center";
-    const bloodRadio=document.createElement("input");
-    bloodRadio.type="radio";
-    bloodRadio.checked=(r.blood === "B");
-    bloodRadio.disabled=true;
-    bloodRadio.setAttribute("aria-label", "Blood");
-    bloodRadio.style.width="18px";
-    bloodRadio.style.height="18px";
-    bloodRadio.style.margin="0";
-    td8.appendChild(bloodRadio);
+    if (r.blood === "B") {
+      const bloodRadio=document.createElement("input");
+      bloodRadio.type="radio";
+      bloodRadio.checked=true;
+      bloodRadio.disabled=true;
+      bloodRadio.setAttribute("aria-label", "Blood");
+      bloodRadio.style.width="18px";
+      bloodRadio.style.height="18px";
+      bloodRadio.style.margin="0";
+      td8.appendChild(bloodRadio);
+    }
 
     tr.append(td0,td1,td2,td3,td4,td5,td6,td7,td8); tbody.appendChild(tr);
   }
