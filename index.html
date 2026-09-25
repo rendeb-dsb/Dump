@@ -113,7 +113,7 @@
     <h1>Dump</h1>
     <div id="timeSinceLastAdded" class="time-since">Time since last record added:  00:00:00</div>
   </div>
-  <div class="version">v25</div>
+  <div class="version">v26</div>
 </header>
 
 <nav>
@@ -337,13 +337,6 @@ async function initializeStorage() {
     req.onerror = () => reject(req.error || new Error("Unable to read persistent storage."));
   });
 
-  lastAddedAt = await getLastAddedAt();
-  if (lastAddedAt === null) {
-    // Older Dump records did not retain the time at which they were added.
-    // Start the new elapsed-time measurement from the v25 installation.
-    lastAddedAt = Date.now();
-    await setLastAddedAt(lastAddedAt);
-  }
   updateLastAddedDisplay();
 }
 
@@ -369,8 +362,8 @@ async function setLastAddedAt(timestamp) {
 }
 
 function formatElapsedSince(timestamp) {
-  if (typeof timestamp !== "number" || !Number.isFinite(timestamp)) return "00:00:00";
-  const diff = Math.max(0, Date.now() - timestamp);
+  if (!(timestamp instanceof Date) || Number.isNaN(timestamp.getTime())) return "00:00:00";
+  const diff = Math.max(0, Date.now() - timestamp.getTime());
   const totalMinutes = Math.floor(diff / 60000);
   const days = Math.floor(totalMinutes / 1440);
   const hours = Math.floor((totalMinutes % 1440) / 60);
@@ -378,11 +371,33 @@ function formatElapsedSince(timestamp) {
   return `${String(days).padStart(2,"0")}:${String(hours).padStart(2,"0")}:${String(minutes).padStart(2,"0")}`;
 }
 
+function recordDateTime(r) {
+  if (!r || typeof r.date !== "string" || typeof r.time !== "string") return null;
+  const dm = r.date.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  const tm = r.time.match(/^(\d{2}):(\d{2})$/);
+  if (!dm || !tm) return null;
+  const d = new Date(Number(dm[3]), Number(dm[1])-1, Number(dm[2]), Number(tm[1]), Number(tm[2]), 0, 0);
+  if (d.getFullYear() !== Number(dm[3]) || d.getMonth() !== Number(dm[1])-1 || d.getDate() !== Number(dm[2]) || d.getHours() !== Number(tm[1]) || d.getMinutes() !== Number(tm[2])) return null;
+  return d;
+}
+
+function latestRecordDateTime() {
+  let latest = null;
+  for (const r of records) {
+    const d = recordDateTime(r);
+    if (d && (!latest || d > latest)) latest = d;
+  }
+  return latest;
+}
+
 let lastAddedAt = null;
 function updateLastAddedDisplay() {
   const el = document.getElementById("timeSinceLastAdded");
-  if (el) el.textContent = `Time since last record added:  ${formatElapsedSince(lastAddedAt)}`;
+  if (!el) return;
+  const latest = latestRecordDateTime();
+  el.textContent = `Time since last record added:  ${formatElapsedSince(latest)}`;
 }
+
 
 async function saveRecords() {
   const db = await openDatabase();
@@ -397,7 +412,7 @@ async function saveRecords() {
   });
 }
 
-setInterval(updateLastAddedDisplay, 30000);
+setInterval(updateLastAddedDisplay, 10000);
 
 function sortRecords() {
   records.sort((a,b) => {
@@ -515,6 +530,7 @@ function renderList() {
   }
 }
 function showList() {
+  updateLastAddedDisplay();
   document.getElementById("editScreen").hidden=true;
   document.getElementById("statsScreen").hidden=true;
   document.getElementById("listScreen").hidden=false;
@@ -874,8 +890,6 @@ document.getElementById("saveBtn").onclick=()=>{
   if (editingId===null) {
     const r={id:crypto.randomUUID(),date,time,volume,structure,balls,size,blood};
     records.push(r); selectedId=r.id;
-    lastAddedAt=Date.now();
-    setLastAddedAt(lastAddedAt).catch(()=>{});
   } else {
     const r=records.find(x=>x.id===editingId);
     if(r){r.date=date;r.time=time;r.volume=volume;r.structure=structure;r.balls=balls;r.size=size;r.blood=blood;} selectedId=editingId;
@@ -1017,10 +1031,6 @@ document.getElementById("confirmImport").onclick=()=>{
 
       records=imported;
       selectedId=records[0]?.id || null;
-      if (imported.length) {
-        lastAddedAt=Date.now();
-        setLastAddedAt(lastAddedAt).catch(()=>{});
-      }
       saveRecords().catch(e=>{
         err.textContent="Import error: Unable to save the imported records.";
       });
