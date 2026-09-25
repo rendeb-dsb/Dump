@@ -69,11 +69,11 @@
   .screen { max-width:700px; margin:10px auto; }
   .screen h2 { margin:0 0 16px; font-size:24px; }
   .entry-grid { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px 18px; }
-  .entry-field { display:grid; grid-template-columns:auto minmax(80px,1fr) 1fr; align-items:center; column-gap:6px; min-width:0; }
+  .entry-field { display:grid; grid-template-columns:auto auto 1fr; align-items:center; column-gap:6px; min-width:0; }
   .entry-field label { margin:0; font-weight:700; font-size:16px; white-space:nowrap; }
   .entry-field .hint { margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .masked { width:100%; min-width:0; box-sizing:border-box; font-size:16px; padding:6px 7px; letter-spacing:1px; }
-  .entry-field select.masked { letter-spacing:0; }
+  .entry-field select.masked { letter-spacing:0; width:72px; justify-self:start; }
   .section-label { margin-top:18px; margin-bottom:10px; font-size:18px; font-weight:700; border-bottom:1px solid #ccc; padding-bottom:5px; }
   .blood-field input[type="radio"] { width:20px; height:20px; margin:0; accent-color:#777; justify-self:start; }
   .actions { display:flex; gap:10px; margin-top:18px; }
@@ -103,7 +103,7 @@
 <body>
 <header>
   <h1>Dump</h1>
-  <div class="version">v15</div>
+  <div class="version">v16</div>
 </header>
 
 <nav>
