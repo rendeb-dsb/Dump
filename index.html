@@ -59,11 +59,9 @@
   .list .timeCol { width:70px; }
   .list .volumeCol { width:90px; }
   .list .structureCol { width:80px; }
-  .list .showCol { width:55px; }
   .list td { border-left:1px solid #ccc; border-right:1px solid #ccc; border-bottom:1px solid #ccc; height:27px; line-height:27px; font-size:14px; }
   .list td:first-child { text-align:center; }
   .list td:last-child { text-align:center; }
-  .list .showButton { font-size:12px; line-height:18px; padding:2px 5px; margin:0; white-space:nowrap; }
   .list input[type="radio"] { width:18px; height:18px; accent-color:#777; margin:0; vertical-align:middle; }
   .empty { color:#555; padding:18px 4px; font-size:16px; }
   .screen { max-width:700px; margin:10px auto; }
@@ -97,8 +95,7 @@
     .list .timeCol { width:70px; }
     .list .volumeCol { width:90px; }
     .list .structureCol { width:80px; }
-    .list .showCol { width:55px; }
-    .entry-grid { grid-template-columns:repeat(2, minmax(0,1fr)); gap:9px 12px; }
+      .entry-grid { grid-template-columns:repeat(2, minmax(0,1fr)); gap:9px 12px; }
     .entry-field { grid-template-columns:auto 1fr; }
     #dateInput { width:128px; }
     #timeInput { width:80px; }
@@ -108,12 +105,12 @@
 <body>
 <header>
   <h1>Dump</h1>
-  <div class="version">v20</div>
+  <div class="version">v21</div>
 </header>
 
 <nav>
   <details>
-    <summary>File</summary>
+    <summary>Actions</summary>
     <div class="menu">
       <button id="addBtn">Add...</button>
       <button id="changeBtn">Change</button>
@@ -132,8 +129,8 @@
 
 <main id="listScreen">
   <table class="list">
-    <colgroup><col class="radioCol"><col class="dayCol"><col class="dateCol"><col class="timeCol"><col class="volumeCol"><col class="structureCol"><col class="showCol"></colgroup>
-    <thead><tr><th></th><th>Day</th><th>Date</th><th>Time</th><th>Volume</th><th>Structure</th><th>Show</th></tr></thead>
+    <colgroup><col class="radioCol"><col class="dayCol"><col class="dateCol"><col class="timeCol"><col class="volumeCol"><col class="structureCol"></colgroup>
+    <thead><tr><th></th><th>Day</th><th>Date</th><th>Time</th><th>Volume</th><th>Structure</th></tr></thead>
     <tbody id="rows"></tbody>
   </table>
   <div id="empty" class="empty">No records stored.</div>
@@ -437,19 +434,7 @@ function renderList() {
     const structureDisplay={1:"Firm",2:"Loose",3:"Liquid"};
     td5.textContent=structureDisplay[r.structure] || structureDisplay[1];
 
-    const td6=document.createElement("td");
-    if (Number(r.balls ?? 0) !== 0 || r.blood === "B") {
-      const showBtn=document.createElement("button");
-      showBtn.type="button";
-      showBtn.textContent="Show";
-      showBtn.className="showButton";
-      showBtn.addEventListener("click", (e)=>{
-        e.stopPropagation();
-        showEdit("Show", r.id);
-      });
-      td6.appendChild(showBtn);
-    }
-    tr.append(td0,td1,td2,td3,td4,td5,td6); tbody.appendChild(tr);
+    tr.append(td0,td1,td2,td3,td4,td5); tbody.appendChild(tr);
   }
 }
 function showList() {
