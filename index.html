@@ -66,15 +66,17 @@
   .list .showButton { font-size:12px; line-height:18px; padding:2px 5px; margin:0; white-space:nowrap; }
   .list input[type="radio"] { width:18px; height:18px; accent-color:#777; margin:0; vertical-align:middle; }
   .empty { color:#555; padding:18px 4px; font-size:16px; }
-  .screen { max-width:500px; margin:10px auto; }
-  .screen h2 { margin:0 0 20px; font-size:24px; }
-  label { display:block; margin:18px 0 6px; font-weight:700; font-size:16px; }
-  .section-label { margin-top:24px; font-size:20px; font-weight:700; border-bottom:1px solid #ccc; padding-bottom:6px; }
-  .masked { width:100%; font-size:20px; padding:10px; letter-spacing:1px; }
-  .actions { display:flex; gap:10px; margin-top:24px; }
-  .blood-row { display:flex; justify-content:flex-start; align-items:center; gap:8px; margin-top:24px; }
-  .blood-row label { margin:0; order:2; font-weight:700; font-size:16px; }
-  .blood-row input[type="radio"] { width:20px; height:20px; margin:0; accent-color:#777; order:1; }
+  .screen { max-width:700px; margin:10px auto; }
+  .screen h2 { margin:0 0 16px; font-size:24px; }
+  .entry-grid { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px 18px; }
+  .entry-field { display:grid; grid-template-columns:auto minmax(80px,1fr) 1fr; align-items:center; column-gap:6px; min-width:0; }
+  .entry-field label { margin:0; font-weight:700; font-size:16px; white-space:nowrap; }
+  .entry-field .hint { margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .masked { width:100%; min-width:0; box-sizing:border-box; font-size:16px; padding:6px 7px; letter-spacing:1px; }
+  .entry-field select.masked { letter-spacing:0; }
+  .section-label { margin-top:18px; margin-bottom:10px; font-size:18px; font-weight:700; border-bottom:1px solid #ccc; padding-bottom:5px; }
+  .blood-field input[type="radio"] { width:20px; height:20px; margin:0; accent-color:#777; justify-self:start; }
+  .actions { display:flex; gap:10px; margin-top:18px; }
   button { font-size:16px; padding:8px 14px; border:1px solid #777; border-radius:5px; background:#f5f5f5; color:#111; }
   .hint { color:#555; font-size:14px; margin-top:6px; }
   .error { color:#a00; font-size:14px; margin-top:8px; min-height:18px; }
@@ -93,13 +95,15 @@
     .list .volumeCol { width:90px; }
     .list .structureCol { width:80px; }
     .list .showCol { width:55px; }
+    .entry-grid { grid-template-columns:1fr; gap:9px; }
+    .entry-field { grid-template-columns:auto minmax(80px,150px) 1fr; }
   }
 </style>
 </head>
 <body>
 <header>
   <h1>Dump</h1>
-  <div class="version">v14</div>
+  <div class="version">v15</div>
 </header>
 
 <nav>
@@ -141,49 +145,65 @@
 
 <main id="editScreen" class="screen" hidden>
   <h2 id="editTitle">Add</h2>
-  <label for="dateInput">Date</label>
-  <input id="dateInput" class="masked" type="text" inputmode="numeric" autocomplete="off" maxlength="10" placeholder="__/__/____" aria-label="Date">
-  <div class="hint">MM/DD/YYYY</div>
+  <div class="entry-grid">
+    <div class="entry-field">
+      <label for="dateInput">Date:</label>
+      <input id="dateInput" class="masked" type="text" inputmode="numeric" autocomplete="off" maxlength="10" placeholder="__/__/____" aria-label="Date">
+      <span class="hint">MM/DD/YYYY</span>
+    </div>
 
-  <label for="timeInput">Time</label>
-  <input id="timeInput" class="masked" type="text" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="__:__" aria-label="Time">
-  <div class="hint">24-hour time, HH:MM</div>
+    <div class="entry-field">
+      <label for="timeInput">Time:</label>
+      <input id="timeInput" class="masked" type="text" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="__:__" aria-label="Time">
+      <span class="hint">24-hour HH:MM</span>
+    </div>
 
-  <label for="volumeInput">Volume</label>
-  <select id="volumeInput" class="masked" aria-label="Volume">
-    <option value="1">Ex-Lrg</option>
-    <option value="2">Large</option>
-    <option value="3" selected>Normal</option>
-    <option value="4">Small</option>
-  </select>
+    <div class="entry-field">
+      <label for="volumeInput">Volume:</label>
+      <select id="volumeInput" class="masked" aria-label="Volume">
+        <option value="1">Ex-Lrg</option>
+        <option value="2">Large</option>
+        <option value="3" selected>Normal</option>
+        <option value="4">Small</option>
+      </select>
+    </div>
 
-  <label for="structureInput">Structure</label>
-  <select id="structureInput" class="masked" aria-label="Structure">
-    <option value="1" selected>Firm</option>
-    <option value="2">Loose</option>
-    <option value="3">Liquid</option>
-  </select>
+    <div class="entry-field">
+      <label for="structureInput">Structure:</label>
+      <select id="structureInput" class="masked" aria-label="Structure">
+        <option value="1" selected>Firm</option>
+        <option value="2">Loose</option>
+        <option value="3">Liquid</option>
+      </select>
+    </div>
+  </div>
 
   <div class="section-label">Attributes</div>
-  <label for="ballsInput">Balls</label>
-  <select id="ballsInput" class="masked" aria-label="Balls">
-    <option value="0" selected>n/a</option>
-    <option value="1">Pellet</option>
-    <option value="2">Marble</option>
-    <option value="3">Stone</option>
-  </select>
+  <div class="entry-grid attributes-grid">
+    <div class="entry-field">
+      <label for="ballsInput">Balls:</label>
+      <select id="ballsInput" class="masked" aria-label="Balls">
+        <option value="0" selected>n/a</option>
+        <option value="1">Pellet</option>
+        <option value="2">Marble</option>
+        <option value="3">Stone</option>
+      </select>
+    </div>
 
-  <label for="sizeInput">Size</label>
-  <select id="sizeInput" class="masked" aria-label="Size">
-    <option value="0" selected>n/a</option>
-    <option value="1">Small</option>
-    <option value="2">Medium</option>
-    <option value="3">Large</option>
-  </select>
+    <div class="entry-field">
+      <label for="sizeInput">Size:</label>
+      <select id="sizeInput" class="masked" aria-label="Size">
+        <option value="0" selected>n/a</option>
+        <option value="1">Small</option>
+        <option value="2">Medium</option>
+        <option value="3">Large</option>
+      </select>
+    </div>
 
-  <div class="blood-row">
-    <label for="bloodInput">Blood</label>
-    <input id="bloodInput" type="radio" aria-label="Blood">
+    <div class="entry-field blood-field">
+      <label for="bloodInput">Blood:</label>
+      <input id="bloodInput" type="radio" aria-label="Blood">
+    </div>
   </div>
 
   <div id="editError" class="error"></div>
